@@ -45,9 +45,7 @@ def create_data_model():
         (10, 15),  # 15
         (11, 15),  # 16
     ]
-    data["demands"] = [0, 1, 1, 2, 4, 2, 4, 8, 8, 1, 2, 1, 2, 4, 4, 8, 8]
     data["num_vehicles"] = 4
-    data["vehicle_capacities"] = [15, 15, 15, 15]
     data["depot"] = 0
     return data
 
@@ -101,22 +99,6 @@ def main():
         return data["time_matrix"][from_node][to_node]
 
     transit_callback_index = routing.RegisterTransitCallback(time_callback)
-
-    # Add Capacity constraint.
-    def demand_callback(from_index):
-        """Returns the demand of the node."""
-        # Convert from routing variable Index to demands NodeIndex.
-        from_node = manager.IndexToNode(from_index)
-        return data["demands"][from_node]
-
-    demand_callback_index = routing.RegisterUnaryTransitCallback(demand_callback)
-    routing.AddDimensionWithVehicleCapacity(
-        demand_callback_index,
-        0,  # null capacity slack
-        data["vehicle_capacities"],  # vehicle maximum capacities
-        True,  # start cumul to zero
-        "Capacity",
-    )
 
     # Define cost of each arc.
     routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
