@@ -45,7 +45,9 @@ def create_data_model():
         (10, 15),  # 15
         (11, 15),  # 16
     ]
+    data["demands"] = [0, 1, 1, 2, 4, 2, 4, 8, 8, 1, 2, 1, 2, 4, 4, 8, 8]
     data["num_vehicles"] = 4
+    data["vehicle_capacities"] = [15, 15, 15, 15]
     data["depot"] = 0
     return data
 
@@ -55,10 +57,15 @@ def print_solution(data, manager, routing, solution):
     print(f"Objective: {solution.ObjectiveValue()}")
     time_dimension = routing.GetDimensionOrDie("Time")
     total_time = 0
+    total_load = 0
     for vehicle_id in range(data["num_vehicles"]):
         index = routing.Start(vehicle_id)
         plan_output = f"Route for vehicle {vehicle_id}:\n"
+        route_load = 0
         while not routing.IsEnd(index):
+            node_index = manager.IndexToNode(index)
+            route_load += data["demands"][node_index]
+            plan_output += f" {node_index} Load({route_load}) -> "
             time_var = time_dimension.CumulVar(index)
             plan_output += (
                 f"{manager.IndexToNode(index)}"
@@ -72,13 +79,16 @@ def print_solution(data, manager, routing, solution):
             f" Time({solution.Min(time_var)},{solution.Max(time_var)})\n"
         )
         plan_output += f"Time of the route: {solution.Min(time_var)}min\n"
+        plan_output += f" {manager.IndexToNode(index)} Load({route_load})\n"
+        plan_output += f"Load of the route: {route_load}\n"
         print(plan_output)
+        total_load += route_load
         total_time += solution.Min(time_var)
     print(f"Total time of all routes: {total_time}min")
 
 
 def main():
-    """Solve the VRP with time windows."""
+    """Solve the VRP with time windows and capacity."""
     # Instantiate the data problem.
     data = create_data_model()
 
@@ -99,6 +109,22 @@ def main():
         return data["time_matrix"][from_node][to_node]
 
     transit_callback_index = routing.RegisterTransitCallback(time_callback)
+
+    # Add Capacity constraint.
+    def demand_callback(from_index):
+        """Returns the demand of the node."""
+        # Convert from routing variable Index to demands NodeIndex.
+        from_node = manager.IndexToNode(from_index)
+        return data["demands"][from_node]
+
+    demand_callback_index = routing.RegisterUnaryTransitCallback(demand_callback)
+    routing.AddDimensionWithVehicleCapacity(
+        demand_callback_index,
+        0,  # null capacity slack
+        data["vehicle_capacities"],  # vehicle maximum capacities
+        True,  # start cumul to zero
+        "Capacity",
+    )
 
     # Define cost of each arc.
     routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
@@ -140,6 +166,7 @@ def main():
         routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
     )
 
+
     # Solve the problem.
     solution = routing.SolveWithParameters(search_parameters)
 
@@ -149,4 +176,6 @@ def main():
 
 
 if __name__ == "__main__":
+    start = time.time()
     main()
+    print(time.time() - start)
