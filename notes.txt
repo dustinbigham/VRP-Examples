@@ -1,4 +1,0 @@
-https://medium.com/jdsc-tech-blog/capacitated-vehicle-routing-problem-cvrp-with-python-pulp-and-google-maps-api-5a42dbb594c0
-
-https://developers.google.com/optimization/routing/cvrp
-
